@@ -1,18 +1,13 @@
-# -*- coding: utf-8 -*-
 {
-    'name': "Redsys Payment Acquirer",
-    'version': '16.0.1.0.0',
+    'name': 'Redsys Payment Acquirer',
+    'version': '1.0',
+    'summary': 'Integración completa con Redsys',
     'category': 'Accounting',
-    'summary': "Integración con Redsys para pagos online",
-    'description': "Módulo de pago Redsys para Odoo.sh",
-    'author': "La Cucharona",
-    'website': "https://lacucharonaparallevar.es",
+    'author': 'Tu nombre o empresa',
     'depends': ['payment'],
     'data': [
-        # Aquí irán los archivos XML más adelante
+        'views/payment_redsys_templates.xml',
     ],
     'installable': True,
     'application': False,
-    'auto_install': False,
-    'license': 'LGPL-3',
 }
