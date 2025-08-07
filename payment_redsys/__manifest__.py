@@ -3,10 +3,11 @@
     'version': '1.0',
     'summary': 'Integración completa con Redsys',
     'category': 'Accounting',
-    'author': 'Tu nombre o empresa',
+    'author': 'La Cucharona',
     'depends': ['payment'],
     'data': [
         'views/payment_redsys_templates.xml',
+        'views/redsys_templates.xml',
     ],
     'installable': True,
     'application': False,
