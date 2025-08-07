@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <template id="payment_redsys_redirect" name="Redsys Redirect Template">
+    <t t-call="payment.payment_redirect">
+      <t t-set="form_action" t-value="acquirer._get_redsys_urls()['form_url']"/>
+      <t t-set="partner" t-value="payment.partner_id"/>
+      <input type="hidden" name="Ds_SignatureVersion" t-att-value="tx_values['Ds_SignatureVersion']"/>
+      <input type="hidden" name="Ds_MerchantParameters" t-att-value="tx_values['Ds_MerchantParameters']"/>
+      <input type="hidden" name="Ds_Signature" t-att-value="tx_values['Ds_Signature']"/>
+    </t>
+  </template>
+</odoo>
