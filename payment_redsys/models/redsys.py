@@ -1,6 +1,6 @@
 # payment_redsys/models/redsys.py
 
-from odoo import fields, models, api
+from odoo import fields, models
 import base64
 import hashlib
 import hmac
@@ -8,108 +8,76 @@ import json
 import logging
 import time
 
+from Crypto.Cipher import DES3
+from Crypto.Util.Padding import pad
+
 _logger = logging.getLogger(__name__)
 
 
-class PaymentAcquirerRedsys(models.Model):
-    _inherit = 'payment.acquirer'
+class PaymentProviderRedsys(models.Model):
+    """ Odoo 16/17/18 usan payment.provider (no payment.acquirer). """
+    _inherit = 'payment.provider'
 
-    provider = fields.Selection(selection_add=[('redsys', 'Redsys')], ondelete={'redsys': 'set default'})
+    # Registrar el proveedor
+    code = fields.Selection(selection_add=[('redsys', 'Redsys')], ondelete={'redsys': 'set default'})
+
+    # Credenciales Redsys
     redsys_merchant_code = fields.Char("Merchant Code", required_if_provider='redsys')
     redsys_secret_key = fields.Char("Secret Key", required_if_provider='redsys')
     redsys_terminal = fields.Char("Terminal", default='1', required_if_provider='redsys')
 
-    def _get_redsys_urls(self):
-        """
-        Regla:
-          - Terminal '999' => entorno de PRUEBAS (sis-t)
-          - Cualquier otro => PRODUCCIÓN
-        Ignoramos self.environment para evitar confusiones.
-        """
+    # URL según terminal (999 => test)
+    def _redsys_get_api_url(self):
         self.ensure_one()
         TEST_URL = 'https://sis-t.redsys.es:25443/sis/realizarPago'
         PROD_URL = 'https://sis.redsys.es/sis/realizarPago'
         terminal = (self.redsys_terminal or '').strip()
         return TEST_URL if terminal == '999' else PROD_URL
 
-    def redsys_form_generate_values(self, values):
-        """
-        Prepara los valores del render para Redsys:
-        - Importe en céntimos (string).
-        - ORDER solo con dígitos (4–12). También sobreescribimos 'reference'
-          para que el builder de MerchantParameters use el numérico.
-        """
+    # Firma Redsys (3DES + HMAC-SHA256, url-safe)
+    @staticmethod
+    def _redsys_sign(merchant_parameters_b64: str, order: str, secret_key_b64: str) -> str:
+        key_base = base64.b64decode(secret_key_b64)
+        cipher = DES3.new(key_base, DES3.MODE_CBC, iv=b'\0' * 8)
+        key_derived = cipher.encrypt(pad(order.encode(), 8))
+        mac = hmac.new(key_derived, merchant_parameters_b64.encode(), hashlib.sha256).digest()
+        return base64.b64encode(mac).decode().replace('+', '-').replace('/', '_')
+
+    # Valores específicos para render (lo consume payment_transaction)
+    def _get_specific_rendering_values(self, tx, processing_values):
+        """Construye Ds_MerchantParameters, firma y URL."""
         self.ensure_one()
+        assert self.code == 'redsys'
 
-        # --- Importe en céntimos (entero, como string) ---
-        amount_eur = float(values.get('amount') or 0.0)
-        amount_cents = str(int(round(amount_eur * 100)))  # 0.20 € => "20"
+        # Importe en céntimos (string) y order solo dígitos (4–12)
+        amount_cents = str(int(round((tx.amount or 0.0) * 100)))
+        ref = str(tx.reference or '')
+        order_digits = ''.join(ch for ch in ref if ch.isdigit())[-12:] or str(tx.id)
 
-        # --- Nº de pedido: solo dígitos (Redsys exige 4–12 dígitos) ---
-        ref = str(values.get('reference') or '')
-        order_digits = ''.join(ch for ch in ref if ch.isdigit())[-12:] or str(int(time.time()))
+        params = {
+            'Ds_Merchant_Amount': amount_cents,
+            'Ds_Merchant_Currency': '978',
+            'Ds_Merchant_Order': order_digits,
+            'Ds_Merchant_MerchantCode': self.redsys_merchant_code or '',
+            'Ds_Merchant_Terminal': (self.redsys_terminal or '1').strip(),
+            'Ds_Merchant_TransactionType': '0',
+            'Ds_Merchant_MerchantName': self.company_id.name or '',
+            'Ds_Merchant_Titular': (self.company_id.name or '')[:60],
+            'Ds_Merchant_UrlOK': tx.return_url,
+            'Ds_Merchant_UrlKO': tx.return_url,
+        }
 
-        tx_values = dict(values)
-        tx_values.update({
-            'merchant_code': self.redsys_merchant_code,
-            'terminal': self.redsys_terminal,
-            'signature_version': "HMAC_SHA256_V1",
-            'currency': '978',              # EUR
-            'transaction_type': '0',
-            'url': self._get_redsys_urls(),
-            # claves usadas más adelante por el builder/plantilla:
-            'amount': amount_cents,         # FORZAMOS CÉNTIMOS (string)
-            'order': order_digits,          # FORZAMOS SOLO DÍGITOS
-        })
+        merchant_parameters_b64 = base64.b64encode(json.dumps(params).encode()).decode()
+        signature = self._redsys_sign(merchant_parameters_b64, order_digits, self.redsys_secret_key or '')
 
-        # Forzar que el builder que use 'reference' también sea numérico
-        tx_values['reference'] = order_digits
+        api_url = self._redsys_get_api_url()
+        _logger.warning("REDSYS DEBUG: amount_cents=%s order=%s api_url=%s", amount_cents, order_digits, api_url)
 
-        # Opcional: exponer explícitamente las claves Merchant para otros builders
-        tx_values['Ds_Merchant_Amount'] = amount_cents
-        tx_values['Ds_Merchant_Currency'] = '978'
-        tx_values['Ds_Merchant_Order'] = order_digits
-        tx_values['Ds_Merchant_MerchantCode'] = self.redsys_merchant_code
-        tx_values['Ds_Merchant_Terminal'] = self.redsys_terminal
-        tx_values['Ds_Merchant_TransactionType'] = '0'
-
-        _logger.warning(
-            "REDSYS DEBUG form_values: amount_eur=%s amount_cents=%s order=%s url=%s",
-            values.get('amount'), tx_values.get('amount'), tx_values.get('order'), tx_values.get('url')
-        )
-
-        return tx_values
-
-   from Crypto.Cipher import DES3
-from Crypto.Util.Padding import pad
-
-def redsys_generate_sign(self, parameters, secret_key):
-    """
-    Firma Redsys (HMAC_SHA256_V1):
-    1) key_base = base64.b64decode(secret_key)
-    2) key_derived = 3DES-CBC(key_base, iv=0) sobre Ds_Merchant_Order (con padding)
-    3) signature = base64( HMAC-SHA256( key_derived, merchant_parameters ) )
-    """
-    # 1) Merchant parameters JSON base64
-    merchant_parameters = base64.b64encode(json.dumps(parameters).encode()).decode()
-
-    # 2) ORDER: preferimos Ds_Merchant_Order (numérico), luego alternativas
-    order = (
-        parameters.get("Ds_Merchant_Order")
-        or parameters.get("DS_MERCHANT_ORDER")
-        or parameters.get("Ds_Order")
-        or parameters.get("order")
-        or ""
-    )
-
-    # 3) Derivar clave con 3DES-CBC IV=0 a partir del ORDER
-    key_base = base64.b_
-
-
-    def _get_feature_support(self):
-        res = super()._get_feature_support()
-        res['authorize'].append('redsys')
-        res['tokenize'].append('redsys')
-        return res
+        return {
+            'Ds_MerchantParameters': merchant_parameters_b64,
+            'Ds_SignatureVersion': 'HMAC_SHA256_V1',
+            'Ds_Signature': signature,
+            'api_url': api_url + '/',  # respeta cómo lo espera tu template
+        }
 
 
