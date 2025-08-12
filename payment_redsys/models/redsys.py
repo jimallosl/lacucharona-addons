@@ -19,10 +19,10 @@ class PaymentAcquirerRedsys(models.Model):
     redsys_terminal = fields.Char("Terminal", default='1', required_if_provider='redsys')
 
     def _get_redsys_urls(self):
-    """ 
+    """
     Regla:
-      - Si el terminal es '999' => entorno de PRUEBAS (sis-t).
-      - En cualquier otro caso   => entorno de PRODUCCIÓN.
+      - Terminal '999' => entorno de PRUEBAS (sis-t)
+      - Cualquier otro => PRODUCCIÓN
     Ignoramos self.environment para evitar confusiones.
     """
     self.ensure_one()
