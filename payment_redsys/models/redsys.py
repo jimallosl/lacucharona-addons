@@ -45,6 +45,8 @@ class PaymentProviderRedsys(models.Model):
 
     # Valores específicos para render (lo consume payment_transaction)
     def _get_specific_rendering_values(self, tx, processing_values):
+        _logger.warning("REDSYS DEBUG >>> our provider hook is RUNNING (staging)")
+
         """Construye Ds_MerchantParameters, firma y URL."""
         self.ensure_one()
         assert self.code == 'redsys'
