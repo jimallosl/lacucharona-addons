@@ -80,30 +80,31 @@ class PaymentAcquirerRedsys(models.Model):
 
         return tx_values
 
-    def redsys_generate_sign(self, parameters, secret_key):
-        """
-        Firmar usando Ds_Merchant_Order (numérico) y los MerchantParameters.
-        """
-        _logger.warning("REDSYS DEBUG sign_in: keys=%s", sorted(list(parameters.keys())))
-        _logger.warning(
-            "REDSYS DEBUG sign_in Amount=%s Order=%s",
-            parameters.get("Ds_Merchant_Amount") or parameters.get("DS_MERCHANT_AMOUNT") or parameters.get("amount"),
-            parameters.get("Ds_Merchant_Order") or parameters.get("DS_MERCHANT_ORDER") or parameters.get("order")
-        )
+   from Crypto.Cipher import DES3
+from Crypto.Util.Padding import pad
 
-        # Tomar el ORDER correcto (preferencia al Ds_Merchant_Order)
-        order = (
-            parameters.get("Ds_Merchant_Order")
-            or parameters.get("DS_MERCHANT_ORDER")
-            or parameters.get("Ds_Order")
-            or parameters.get("order")
-        )
+def redsys_generate_sign(self, parameters, secret_key):
+    """
+    Firma Redsys (HMAC_SHA256_V1):
+    1) key_base = base64.b64decode(secret_key)
+    2) key_derived = 3DES-CBC(key_base, iv=0) sobre Ds_Merchant_Order (con padding)
+    3) signature = base64( HMAC-SHA256( key_derived, merchant_parameters ) )
+    """
+    # 1) Merchant parameters JSON base64
+    merchant_parameters = base64.b64encode(json.dumps(parameters).encode()).decode()
 
-        merchant_parameters = base64.b64encode(json.dumps(parameters).encode()).decode()
-        key = base64.b64decode(secret_key)
-        key = hmac.new(key, order.encode(), hashlib.sha256).digest()
-        signature = base64.b64encode(hmac.new(key, merchant_parameters.encode(), hashlib.sha256).digest()).decode()
-        return merchant_parameters, signature
+    # 2) ORDER: preferimos Ds_Merchant_Order (numérico), luego alternativas
+    order = (
+        parameters.get("Ds_Merchant_Order")
+        or parameters.get("DS_MERCHANT_ORDER")
+        or parameters.get("Ds_Order")
+        or parameters.get("order")
+        or ""
+    )
+
+    # 3) Derivar clave con 3DES-CBC IV=0 a partir del ORDER
+    key_base = base64.b_
+
 
     def _get_feature_support(self):
         res = super()._get_feature_support()
