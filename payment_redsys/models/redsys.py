@@ -33,6 +33,11 @@ class PaymentAcquirerRedsys(models.Model):
     return TEST_URL if terminal == '999' else PROD_URL
 
     def redsys_generate_sign(self, parameters, secret_key):
+        _logger.warning("REDSYS DEBUG sign_in: keys=%s", sorted(list(parameters.keys())))
+_logger.warning("REDSYS DEBUG sign_in Amount=%s Order=%s",
+                parameters.get("Ds_Merchant_Amount") or parameters.get("DS_MERCHANT_AMOUNT") or parameters.get("amount"),
+                parameters.get("Ds_Order") or parameters.get("DS_MERCHANT_ORDER") or parameters.get("order"))
+
         order = parameters.get("Ds_Order")
         merchant_parameters = base64.b64encode(json.dumps(parameters).encode()).decode()
         key = base64.b64decode(secret_key)
