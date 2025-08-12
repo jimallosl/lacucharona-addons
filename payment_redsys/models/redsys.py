@@ -46,11 +46,30 @@ class PaymentAcquirerRedsys(models.Model):
         res['tokenize'].append('redsys')
         return res
 
-    def redsys_generate_sign(self, parameters, secret_key):
-    order = parameters.get("Ds_Order") or parameters.get("order")  # <—
-    merchant_parameters = base64.b64encode(json.dumps(parameters).encode()).decode()
-    key = base64.b64decode(secret_key)
-    key = hmac.new(key, order.encode(), hashlib.sha256).digest()
-    signature = base64.b64encode(hmac.new(key, merchant_parameters.encode(), hashlib.sha256).digest()).decode()
-    return merchant_parameters, signature
+    def redsys_form_generate_values(self, values):
+    self.ensure_one()
+
+    # --- Importe en céntimos (entero, como string) ---
+    amount_eur = float(values.get('amount') or 0.0)
+    amount_cents = str(int(round(amount_eur * 100)))  # Ej: 0.20 € => "20"
+
+    # --- Nº de pedido: solo dígitos (Redsys exige 4–12 dígitos) ---
+    import time
+    ref = str(values.get('reference') or '')
+    order_digits = ''.join(ch for ch in ref if ch.isdigit())[-12:] or str(int(time.time()))
+
+    tx_values = dict(values)
+    tx_values.update({
+        'merchant_code': self.redsys_merchant_code,
+        'terminal': self.redsys_terminal,
+        'signature_version': "HMAC_SHA256_V1",
+        'currency': '978',              # EUR
+        'transaction_type': '0',
+        'url': self._get_redsys_urls(),
+        # Claves que usará el generador de parámetros/signatura
+        'amount': amount_cents,         # FORZAMOS CENTS
+        'order': order_digits,          # FORZAMOS SOLO DÍGITOS
+    })
+    return tx_values
+
 
