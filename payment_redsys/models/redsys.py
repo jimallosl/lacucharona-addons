@@ -19,11 +19,18 @@ class PaymentAcquirerRedsys(models.Model):
     redsys_terminal = fields.Char("Terminal", default='1', required_if_provider='redsys')
 
     def _get_redsys_urls(self):
-        self.ensure_one()
-        if self.environment == 'prod':
-            return 'https://sis.redsys.es/sis/realizarPago'
-        else:
-            return 'https://sis-t.redsys.es:25443/sis/realizarPago'
+    """ 
+    Regla:
+      - Si el terminal es '999' => entorno de PRUEBAS (sis-t).
+      - En cualquier otro caso   => entorno de PRODUCCIÓN.
+    Ignoramos self.environment para evitar confusiones.
+    """
+    self.ensure_one()
+    TEST_URL = 'https://sis-t.redsys.es:25443/sis/realizarPago'
+    PROD_URL = 'https://sis.redsys.es/sis/realizarPago'
+
+    terminal = (self.redsys_terminal or '').strip()
+    return TEST_URL if terminal == '999' else PROD_URL
 
     def redsys_generate_sign(self, parameters, secret_key):
         order = parameters.get("Ds_Order")
