@@ -46,15 +46,11 @@ class PaymentAcquirerRedsys(models.Model):
         res['tokenize'].append('redsys')
         return res
 
-    def redsys_form_generate_values(self, values):
-        self.ensure_one()
-        tx_values = dict(values)
-        tx_values.update({
-            'merchant_code': self.redsys_merchant_code,
-            'terminal': self.redsys_terminal,
-            'signature_version': "HMAC_SHA256_V1",
-            'currency': '978',
-            'transaction_type': '0',
-            'url': self._get_redsys_urls(),
-        })
-        return tx_values
+    def redsys_generate_sign(self, parameters, secret_key):
+    order = parameters.get("Ds_Order") or parameters.get("order")  # <—
+    merchant_parameters = base64.b64encode(json.dumps(parameters).encode()).decode()
+    key = base64.b64decode(secret_key)
+    key = hmac.new(key, order.encode(), hashlib.sha256).digest()
+    signature = base64.b64encode(hmac.new(key, merchant_parameters.encode(), hashlib.sha256).digest()).decode()
+    return merchant_parameters, signature
+
