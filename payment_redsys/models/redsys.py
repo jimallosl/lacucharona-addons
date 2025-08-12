@@ -70,6 +70,9 @@ class PaymentAcquirerRedsys(models.Model):
         'amount': amount_cents,         # FORZAMOS CENTS
         'order': order_digits,          # FORZAMOS SOLO DÍGITOS
     })
+    _logger.warning("REDSYS DEBUG form_values: amount_eur=%s amount_cents=%s order=%s url=%s",
+                values.get('amount'), tx_values.get('amount'), tx_values.get('order'), tx_values.get('url'))
+
     return tx_values
 
 
