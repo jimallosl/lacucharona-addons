@@ -1,0 +1,58 @@
+<odoo>
+  <record id="lcc_menu_template_tree" model="ir.ui.view">
+    <field name="name">lcc.menu.template.tree</field>
+    <field name="model">lcc.menu.template</field>
+    <field name="arch" type="xml">
+      <tree>
+        <field name="name"/>
+        <field name="product_id"/>
+        <field name="enforce_exact_choices"/>
+        <field name="warehouse_id"/>
+        <field name="allow_portal"/>
+        <field name="active"/>
+      </tree>
+    </field>
+  </record>
+
+  <record id="lcc_menu_template_form" model="ir.ui.view">
+    <field name="name">lcc.menu.template.form</field>
+    <field name="model">lcc.menu.template</field>
+    <field name="arch" type="xml">
+      <form>
+        <sheet>
+          <group>
+            <field name="name"/>
+            <field name="product_id"/>
+            <field name="warehouse_id"/>
+            <field name="enforce_exact_choices"/>
+            <field name="allow_portal"/>
+            <field name="company_ids" widget="many2many_tags"/>
+          </group>
+          <notebook>
+            <page string="Categorías">
+              <field name="category_lines">
+                <tree editable="bottom">
+                  <field name="category"/>
+                  <field name="min_qty"/>
+                  <field name="max_qty"/>
+                  <field name="min_stock"/>
+                  <field name="show_allergens"/>
+                  <field name="product_ids"/>
+                </tree>
+              </field>
+            </page>
+          </notebook>
+        </sheet>
+      </form>
+    </field>
+  </record>
+
+  <record id="lcc_menu_template_action" model="ir.actions.act_window">
+    <field name="name">Plantillas de Menú</field>
+    <field name="res_model">lcc.menu.template</field>
+    <field name="view_mode">tree,form</field>
+  </record>
+
+  <menuitem id="lcc_menu_root" name="Menús LCC" parent="sale.sale_menu_root"/>
+  <menuitem id="lcc_menu_templates" name="Plantillas" parent="lcc_menu_root" action="lcc_menu_template_action"/>
+</odoo>
