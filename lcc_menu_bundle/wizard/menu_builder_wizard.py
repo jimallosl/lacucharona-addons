@@ -67,6 +67,7 @@ class LccMenuBuilderWizard(models.TransientModel):
                 self.env["lcc.menu.history"].sudo().bump(order.partner_id, prod, l.category)
         return {"type": "ir.actions.act_window_close"}
 
+
 class LccMenuBuilderLine(models.TransientModel):
     _name = "lcc.menu.builder.line"
     _description = "Selección por categoría"
@@ -82,6 +83,21 @@ class LccMenuBuilderLine(models.TransientModel):
 
     min_qty = fields.Integer(default=0)
     max_qty = fields.Integer(default=1)
-    candidate_ids = fields.Many2many("product.product", string="Candidatos (en stock)")
-    selection_ids = fields.Many2many("product.product", string="Elegidos")
+
+    # FIX: tablas Many2many distintas para evitar colisión
+    candidate_ids = fields.Many2many(
+        "product.product",
+        "lcc_menu_builder_line_candidate_rel",  # tabla M2M específica
+        "line_id",                              # FK a esta línea
+        "product_id",                           # FK a product.product
+        string="Candidatos (en stock)",
+    )
+    selection_ids = fields.Many2many(
+        "product.product",
+        "lcc_menu_builder_line_selection_rel",  # tabla M2M distinta
+        "line_id",
+        "product_id",
+        string="Elegidos",
+    )
+
     show_allergens = fields.Boolean(default=True)
