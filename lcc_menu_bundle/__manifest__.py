@@ -1,6 +1,6 @@
 {
     "name": "LCC Menu Bundle",
-    "version": "18.0.1.0",
+    "version": "18.0.1.2",
     "summary": "Bundles de menús por categorías con stock real, ingredientes e historial.",
     "depends": [
         "sale_management",
