@@ -9,6 +9,6 @@
         'views/payment_redsys_templates.xml',
         'views/redsys_templates.xml',
     ],
-    'installable': True,
+    'installable': False,
     'application': False,
 }
