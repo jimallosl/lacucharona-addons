@@ -1,0 +1,73 @@
+<odoo>
+  <template id="website_menu_builder" name="LCC Menu Builder">
+    <t t-call="website.layout">
+      <div class="container my-4">
+        <h2 t-esc="template.name"/>
+        <form t-attf-action="/menu/submit/#{wizard.id}" method="post">
+          <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+          <t t-foreach="wizard.line_ids" t-as="line">
+            <div class="card my-3">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <strong t-esc="dict(line._fields['category'].selection).get(line.category)"/>
+                <span class="text-muted">Máx <t t-esc="line.max_qty"/></span>
+              </div>
+              <div class="card-body">
+                <p class="text-muted small mb-2">Puedes saltarte esta categoría; el precio del menú no cambia.</p>
+                <div class="row">
+                  <t t-foreach="line.candidate_ids" t-as="p">
+                    <div class="col-6 col-md-4 col-lg-3 mb-3">
+                      <div class="border p-2 h-100">
+                        <div class="mb-2 text-center">
+                          <img t-if="p.image_1920" t-attf-src="/web/image/product.product/#{p.id}/image_1920" class="img-fluid" />
+                          <div class="fw-semibold mt-2" t-esc="p.display_name"/>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" t-att-name="'cat_' + str(line.id)" type="checkbox" t-att-value="p.id"/>
+                          <label class="form-check-label">Incluir</label>
+                        </div>
+                        <a role="button" t-attf-data-bs-target="#modal-#{p.id}" data-bs-toggle="modal">Ver ingredientes</a>
+                      </div>
+                    </div>
+
+                    <!-- Modal ingredientes por producto -->
+                    <div class="modal fade" t-attf-id="modal-#{p.id}" tabindex="-1">
+                      <div class="modal-dialog modal-dialog-scrollable">
+                        <div class="modal-content">
+                          <div class="modal-header">
+                            <h5 class="modal-title" t-esc="p.display_name"/>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"/>
+                          </div>
+                          <div class="modal-body">
+                            <t t-set="bom" t-value="p.product_tmpl_id.bom_ids[:1]"/>
+                            <t t-if="bom">
+                              <p class="fw-semibold">Ingredientes (BoM):</p>
+                              <ul class="mb-3">
+                                <t t-foreach="bom.bom_line_ids" t-as="bl">
+                                  <li>
+                                    <t t-esc="bl.product_id.display_name"/>
+                                    <t t-if="bl.product_id.description_sale"> — <span t-esc="bl.product_id.description_sale"/></t>
+                                  </li>
+                                </t>
+                              </ul>
+                            </t>
+                            <t t-if="not bom">
+                              <p class="text-muted">Sin BoM definido.</p>
+                            </t>
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </t>
+                </div>
+              </div>
+            </div>
+          </t>
+          <button class="btn btn-primary btn-lg" type="submit">Añadir menú al carrito</button>
+        </form>
+      </div>
+    </t>
+  </template>
+</odoo>
